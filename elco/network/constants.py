@@ -62,3 +62,17 @@ class Voltage:
             (MVOLTH_2_LVOLT, Text.MVOLTH_2_LVOLT),
             (MVOLTL_2_LVOLT, Text.MVOLTL_2_LVOLT),
         )
+
+
+class Condition:
+    """
+    Provides a listing of equipment and device conditions.
+    """
+    UNKNOWN, OK, FAULTY, DAMAGED = range(1, 5)
+    CHOICES = (
+        (UNKNOWN, 'Unknown'),
+        (OK,      'OK'),
+        (FAULTY,  'Faulty'),
+        (DAMAGED, 'DAMAGED'),
+    )
+

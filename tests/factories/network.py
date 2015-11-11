@@ -3,8 +3,9 @@
 from datetime import datetime
 
 import factory
-from elco.network.models import Station, PowerLine
-from elco.network.constants import Voltage
+from elco.network.models import Station, PowerLine, TransformerRating, \
+        Transformer
+from elco.network.constants import Voltage, Condition
 from elco.core.places import State
 
 
@@ -36,4 +37,23 @@ class PowerLineFactory(factory.DjangoModelFactory):
     
     class Meta:
         model = PowerLine
+
+
+class TransformerRatingFactory(factory.DjangoModelFactory):
+    code = 'T360M'
+    capacity = 60000
+    voltage_ratio = Voltage.Ratio.HVOLTL_2_MVOLTH
+    
+    class Meta:
+        model = TransformerRating
+
+
+class TransformerFactory(factory.DjangoModelFactory):
+    station = factory.SubFactory(StationFactory)
+    condition = Condition.OK
+    date_installed = datetime.today()
+    serialno = 'SXJ827YU-9287sWA2'
+    
+    class Meta:
+        model = Transformer
 

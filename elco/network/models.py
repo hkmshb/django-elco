@@ -2,7 +2,9 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
 from ..core.places import State
-from .constants import Voltage
+from .constants import Voltage, Condition
+from .validators import validate_transformer_rating_code_format, \
+        validate_transformer_rating_code
 
 
 
@@ -107,4 +109,113 @@ class PowerLine(AbstractBaseModel):
     
     class Meta:
         unique_together = ('name', 'voltage')
+
+
+class TransformerRating(AbstractBaseModel):
+    """
+    Represents a transformer power rating. Capacity value is expected to be in
+    KVA thus 6MVA should be provided as 6000KVA. 
+    
+    A transformer rating codes ins't an arbitrary code, its actually an encoding
+    of a transformers capacity and voltage ratio values put into 5 characters.
+    Thus given just a transformer rating code, it should be possible to tell the
+    actual capacity and voltage ratio values. Furthermore the code captures an
+    extra detail of the transformer, to tell if its a power transformer or just
+    a distribution transformer. 
+    
+    The code format expressed using regex is as thus:
+      -> (P|D)(3|1)dd(d|[Mm])
+      
+      where:
+          P: signifies Power transformer
+          D: signifies Distribution transformer
+          3: the last L-side voltage ratio digit if P (132/33KV) or the last
+             H-side digit if D (33/0.415KV)
+          1: the last L-side voltage ratio digit if P (132/11KV) or (33/11KV)
+             or the last H-side digit if D (11/0.415KV)
+          d: a single digit, 0-9
+          M: signifies a multiplier of 10^6
+          m: signifies a multiplier of 10^5 (fractional multiplier)
+    
+    Rules:
+      1. Code must begin with a P or D else its invalid
+      2. Code must be 5 characters long with or without the multiplier
+      3. The default multiplier for P-starting codes is M if its not provided
+         and for D-starting codes its K (10^3) though this is never indicated.
+      4. Code for power transformers MUST carry multiplier whenever possible.
+      5. The standard multipliers of M and m can also be applied for K-starting
+         codes.
+      6. Dots are not permitted in code; the fractional multiplier MUST be used
+         in code for capacities that would normally be written using fraction
+         for the standard units of MVA or KVA.
+      7. D-starting codes must be expressed in its most natural form where it
+         ends with the K multiplier, the M or m should only be used where it
+         qualifies for capacity is in the Mega range.
+    
+    Examples:
+         Capacity       Expressed As
+      1. 60MVA     ->   60M   or   060
+      2. 6MVA      ->   06M   or   006
+      3. 7.5MVA    ->   75m
+      4. 500KVA    ->   500
+      5. 50KVA     ->   050
+      6. 25KVA     ->   025
+      7. 1000KVA   ->   01M
+      8. 1500KVA   ->   15m
+    """
+    code = models.CharField(
+        _("Code"), max_length=5, unique=True,
+        validators=[validate_transformer_rating_code_format])
+    capacity = models.PositiveIntegerField(_("Capacity"))
+    voltage_ratio = models.PositiveSmallIntegerField(
+        _("Voltage Ratio"), choices=Voltage.Ratio.ALL_CHOICES)
+    notes = models.TextField(_("Notes"), blank=True)
+    
+    def __str__(self):
+        return '%s, %s' % (self.capacity, self.get_voltage_ratio_display())
+    
+    class Meta:
+        unique_together = ('capacity', 'voltage_ratio')
+    
+    def clean(self):
+        # ensure coded rating & capacity match actual values
+        validate_transformer_rating_code(
+            self.code, 
+            self.capacity, 
+            self.voltage_ratio)
+
+
+class EquipmentBase(AbstractBaseModel):
+    """
+    Represents the abstract base class for equipments.
+    """
+    serialno = models.CharField(
+        _("Serial #"), max_length=50, blank=True, unique=True)
+    model = models.CharField(
+        _("Model"), max_length=100, blank=True)
+    manufacturer = models.CharField(
+        _("Manufacturer"), max_length=100, blank=True)
+    condition = models.PositiveSmallIntegerField(
+        _("Condition"), choices=Condition.CHOICES)
+    station = models.ForeignKey(
+        Station, to_field='code',
+        verbose_name=_("Station"), on_delete=models.PROTECT)
+    date_installed = models.DateField(
+        _("Date Installed"), null=True, blank=True)
+    date_manufactured = models.DateField(
+        _("Date Manufactured"), null=True, blank=True)
+    notes = models.TextField(_("Notes"), blank=True)
+    
+    class Meta:
+        abstract = True
+
+
+class Transformer(EquipmentBase):
+    """
+    Represents all classes (power, distribution) of transformers within an
+    electricity distribution network.
+    """
+    rating = models.ForeignKey(
+        TransformerRating, to_field='code',
+        verbose_name=_("Rating"), on_delete=models.PROTECT)
 
