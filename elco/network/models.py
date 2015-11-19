@@ -30,6 +30,12 @@ class Station(AbstractBaseModel):
     INJECTION    = 'I'
     DISTRIBUTION = 'D'
     
+    TYPE_NAME_ID_MAP = {
+        'transmissions': TRANSMISSION,
+        'injections':    INJECTION,
+        'distributions': DISTRIBUTION,
+    }
+    
     STATION_CHOICES = (
         (TRANSMISSION, 'Transmission'),
         (INJECTION,    'Injection'),
@@ -65,6 +71,19 @@ class Station(AbstractBaseModel):
         fields = [f.strip() for f in fields if f]
         fields.append(self.get_state_display())
         return u", ".join(fields)
+    
+    @staticmethod
+    def get_type_name(type_id):
+        for name, id in Station.TYPE_NAME_ID_MAP.items():
+            if type_id == id:
+                return name
+        raise ValueError(_("Unknown station type id: %s") % type_id)
+    
+    @staticmethod
+    def get_type_id(type_name):
+        if type_name not in Station.TYPE_NAME_ID_MAP:
+            raise ValueError(_("Unknown station type name: %s") % type_name)
+        return Station.TYPE_NAME_ID_MAP[type_name]
 
 
 class PowerLine(AbstractBaseModel):
