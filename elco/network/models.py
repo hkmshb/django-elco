@@ -56,7 +56,7 @@ class Station(AbstractBaseModel):
     state = models.CharField(
         _("State"), max_length=2, choices=State.ALL_CHOICES)
     source_feeder = models.ForeignKey(
-        'PowerLine', null=True, default=None,
+        'PowerLine', null=True, default=None, blank=True,
         verbose_name=_("Source Feeder"), on_delete=models.PROTECT)
     date_commissioned = models.DateField(
         _("Date Commissioned"), null=True, blank=True)
@@ -71,6 +71,9 @@ class Station(AbstractBaseModel):
         fields = [f.strip() for f in fields if f]
         fields.append(self.get_state_display())
         return u", ".join(fields)
+    
+    def clean(self):
+        pass
     
     @staticmethod
     def get_type_name(type_id):
