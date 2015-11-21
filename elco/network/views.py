@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.db.models import Q
 
 from .forms import StationForm
-from .models import Station
+from .models import Station, PowerLine, Transformer
 
 
 
@@ -63,5 +63,29 @@ def station_manage(request, type_name, station_id=None,
     })
 
 
-def station_display(request, type_name, station_id, asset_type_name=None):
-    pass
+def station_display(request, type_name, station_id, 
+                    asset_type_name="transformers",
+                    template='elco/station/detail.html'):
+    type_id = Station.get_type_id(type_name)
+    qf = Q(pk=station_id) & Q(type=type_id)
+    
+    station = get_object_or_404(Station, qf)
+    asset_class, qf2 = None, None
+    if Station.is_feeder_asset_label(asset_type_name):
+        asset_class = PowerLine
+        qf2 = (Q(source_station__id=station_id)
+             & Q(source_station__type=type_id))
+    else:
+        asset_class = Transformer
+        qf2 = (Q(station__id=station_id) & Q(station__type=type_id))
+    
+    asset_list = asset_class.objects.filter(qf2)
+    return TemplateResponse(request,
+        template, {
+        'station_type_name': type_name,
+        'station': station,
+        'asset_type_name': asset_type_name,
+        'asset_list': asset_list,
+    })
+
+

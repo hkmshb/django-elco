@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from ..core.places import State
@@ -75,6 +76,21 @@ class Station(AbstractBaseModel):
     def clean(self):
         pass
     
+    def get_absolute_url(self):
+        return reverse('station-detail', args=[self.type_name, self.id])
+    
+    def get_asset_list_url(self, asset_label):
+        return reverse('station-detail',
+            args=[self.type_name, self.id, asset_label])
+    
+    def get_feeder_list_url(self):
+        return reverse('station-detail',
+            args=[self.type_name, self.id, 'feeders'])
+    
+    def get_transformer_list_url(self):
+        return reverse('station-detail',
+            args=[self.type_name, self.id, 'transformers'])
+    
     @staticmethod
     def get_type_name(type_id):
         for name, id in Station.TYPE_NAME_ID_MAP.items():
@@ -87,6 +103,21 @@ class Station(AbstractBaseModel):
         if type_name not in Station.TYPE_NAME_ID_MAP:
             raise ValueError(_("Unknown station type name: %s") % type_name)
         return Station.TYPE_NAME_ID_MAP[type_name]
+    
+    @staticmethod
+    def is_feeder_asset_label(type_name):
+        return type_name == 'feeders'
+    
+    @staticmethod
+    def get_feeder_asset_label():
+        return 'feeders'
+    
+    @staticmethod
+    def asset_labels():
+        return [
+            "transformers",
+            "feeders",
+        ]
 
 
 class PowerLine(AbstractBaseModel):
