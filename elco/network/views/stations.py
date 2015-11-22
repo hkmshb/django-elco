@@ -8,8 +8,8 @@ from django.core.urlresolvers import reverse
 from django.contrib import messages
 from django.db.models import Q
 
-from .forms import StationForm
-from .models import Station, PowerLine, Transformer
+from ..forms import StationForm
+from ..models import Station, PowerLine, Transformer
 
 
 
@@ -87,5 +87,3 @@ def station_display(request, type_name, station_id,
         'asset_type_name': asset_type_name,
         'asset_list': asset_list,
     })
-
-
