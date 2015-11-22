@@ -86,8 +86,8 @@ class TransformerForm(forms.ModelForm):
     class Meta:
         model = Transformer
         fields = [
-            'condition', 'station', 'date_installed', 'serialno', 'model', 
-            'manufacturer', 'date_manufactured', 'notes',
+            'condition', 'station', 'rating', 'date_installed', 'serialno', 
+            'model', 'manufacturer', 'date_manufactured', 'notes',
         ]
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 2, })

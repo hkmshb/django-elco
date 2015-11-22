@@ -8,7 +8,7 @@ from django.core.urlresolvers import reverse
 from django.contrib import messages
 from django.db.models import Q
 
-from ..forms import StationForm
+from ..forms import StationForm, PowerLineForm, TransformerForm
 from ..models import Station, PowerLine, Transformer
 
 
@@ -64,7 +64,7 @@ def station_manage(request, type_name, station_id=None,
 
 
 def station_display(request, type_name, station_id, 
-                    asset_type_name="transformers",
+                    asset_type_name='transformers',
                     template='elco/station/detail.html'):
     type_id = Station.get_type_id(type_name)
     qf = Q(pk=station_id) & Q(type=type_id)
@@ -87,3 +87,45 @@ def station_display(request, type_name, station_id,
         'asset_type_name': asset_type_name,
         'asset_list': asset_list,
     })
+
+
+def station_asset_manage(request, type_name, station_id,
+                         asset_type_name='transformers', asset_id=None,
+                         template='elco/station/asset-form.html'):
+    # ensure station exists
+    type_id = Station.get_type_id(type_name)
+    qf = Q(pk=station_id) & Q(type=type_id)
+    station = get_object_or_404(Station, qf)
+    
+    # prepare for asset creation
+    asset_class, asset_form = (Transformer, TransformerForm)
+    if Station.is_feeder_asset_label(asset_type_name):
+        asset_class, asset_form = (PowerLine, PowerLineForm)
+    
+    asset = asset_class()
+    if asset_id:
+        asset = get_object_or_404(asset_class, pk=asset_id)
+    
+    if request.method == 'POST':
+        form = asset_form(data=request.POST, instance=asset)
+        if form.is_valid():
+            form.save()
+            
+            msg_fmt = "The %s has been " % asset_type_name[:-1]
+            message = _(msg_fmt + "created.")
+            if asset_id:
+                message = _(msg_fmt + "updated.")
+            messages.success(request, message)
+            
+            next_url = request.POST.get('next', None)
+            return_url = request.META.get('HTTP_REFERER', next_url)
+            args = [type_name, station_id, asset_type_name]
+            return redirect(reverse('station-asset-list', args=args) or return_url)
+    else:
+        form = asset_form(instance=asset)
+    return TemplateResponse(request,
+        template, {
+        'asset_type_name': asset_type_name,
+        'form': form,
+    })
+
