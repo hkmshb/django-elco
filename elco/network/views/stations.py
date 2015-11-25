@@ -3,6 +3,7 @@
 
 from django.shortcuts import redirect, get_object_or_404
 from django.utils.translation import ugettext_lazy as _
+from django.core.exceptions import ObjectDoesNotExist
 from django.template.response import TemplateResponse
 from django.core.urlresolvers import reverse
 from django.contrib import messages
@@ -10,7 +11,15 @@ from django.db.models import Q
 
 from ..forms import StationForm, PowerLineForm, TransformerForm
 from ..models import Station, PowerLine, Transformer
+from . import manage_object_deletion
 
+
+
+
+# string constants
+MSG_FMT_WARN_DELETE = (
+    'Some of the selected %s were deleted successfully. '
+    'However %s of the selection could not be deleted.')
 
 
 def station_list(request, type_name, template='elco/station/list.html'):
@@ -63,7 +72,7 @@ def station_manage(request, type_name, station_id=None,
     })
 
 
-def station_display(request, type_name, station_id, 
+def station_display(request, type_name, station_id,
                     asset_type_name='transformers',
                     template='elco/station/detail.html'):
     type_id = Station.get_type_id(type_name)
@@ -87,6 +96,14 @@ def station_display(request, type_name, station_id,
         'asset_type_name': asset_type_name,
         'asset_list': asset_list,
     })
+
+
+def station_delete(request, type_name, station_id=None):
+    return manage_object_deletion(request, ids=station_id,
+        model_name='stations',
+        model=Station, 
+        return_url=reverse('station-list', args=[type_name])
+    )
 
 
 def station_asset_manage(request, type_name, station_id,

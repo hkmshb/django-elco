@@ -10,6 +10,7 @@ from django.db.models import Q
 
 from ..forms import TransformerRatingForm
 from ..models import TransformerRating
+from . import manage_object_deletion
 
 
 # transformer ratings list
@@ -57,3 +58,10 @@ def transformer_display(request, record_id=None,
         'record': record,
     })
 
+
+def transformer_delete(request, record_id=None):
+    return manage_object_deletion(request, ids=record_id, 
+        model_name='transformer rating',
+        model=TransformerRating, 
+        return_url=reverse('rating-transformer-list')
+    )
