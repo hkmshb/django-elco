@@ -42,7 +42,7 @@ def transformer_manage(request, record_id=None,
                 target_url_name = 'rating-transformer-create'
                 return redirect(reverse(target_url_name))
             
-            target_url_name = 'rating-transformer-display'
+            target_url_name = 'rating-transformer-detail'
             return redirect(reverse(target_url_name, args=[form.instance.id]))
     else:
         form = TransformerRatingForm(instance=record)

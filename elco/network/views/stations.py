@@ -30,6 +30,7 @@ def station_list(request, type_name, template='elco/station/list.html'):
     return TemplateResponse(request,
         template, {
         'station_type_name': type_name,
+        'station_type_id': type_id,
         'records': records,
     })
 
@@ -55,12 +56,15 @@ def station_manage(request, type_name, station_id=None,
             message = _("The station has been added.")
             if station_id:
                 message = _("The station has been updated.")
-            messages.success(request, message)
+            messages.success(request, message, extra_tags='success')
             
-            target_url_name = 'station-display'
             if '_save_addnew' in request.POST:
                 target_url_name = 'station-create'
-            return redirect(reverse(target_url_name, args=[type_name])) 
+                return redirect(reverse(target_url_name, args=[type_name]))
+            
+            target_url_name = 'station-detail'
+            args=[type_name, form.instance.id]
+            return redirect(reverse(target_url_name, args=args))
     else:
         data = {'type': type_id}
         form = StationForm(instance=station, initial=data)
@@ -68,6 +72,7 @@ def station_manage(request, type_name, station_id=None,
     return TemplateResponse(request,
         template, {
         'station_type_name': type_name,
+        'station_type_id': type_id,
         'form': form,  
     })
 
@@ -91,8 +96,10 @@ def station_display(request, type_name, station_id,
     asset_list = asset_class.objects.filter(qf2)
     return TemplateResponse(request,
         template, {
-        'station_type_name': type_name,
+        'form': StationForm(instance=station),
         'station': station,
+        'station_type_name': type_name,
+        'station_type_id': type_id,
         'asset_type_name': asset_type_name,
         'asset_list': asset_list,
     })

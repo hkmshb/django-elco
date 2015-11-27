@@ -11,7 +11,7 @@ rating_transformer_urls = [
     url(r'^delete$', rating_views.transformer_delete, name='rating-transformer-delete'),
     url(r'^(?P<record_id>\d+)/', 
         include([
-            url(r'^$', rating_views.transformer_display, name='rating-transformer-display'),
+            url(r'^$', rating_views.transformer_display, name='rating-transformer-detail'),
             url(r'^update$', rating_views.transformer_manage, name='rating-transformer-update'),
         ]
     )),
@@ -23,7 +23,7 @@ station_urls = [
     url(r'^delete$', station_views.station_delete, name='station-multi-delete'),
     url(r'^(?P<station_id>\d+)/',
         include([
-            url(r'^$', station_views.station_display, name='station-display'),
+            url(r'^$', station_views.station_display, name='station-detail'),
             url(r'^update$', station_views.station_manage, name='station-update'),
             url(r'^delete$', station_views.station_delete, name='station-delete'),
         ]

@@ -77,19 +77,21 @@ class Station(AbstractBaseModel):
         pass
     
     def get_absolute_url(self):
-        return reverse('station-detail', args=[self.type_name, self.id])
+        type_name = self.get_type_name(self.type)
+        return reverse('station-detail', args=[type_name, self.id])
     
     def get_asset_list_url(self, asset_label):
-        return reverse('station-detail',
-            args=[self.type_name, self.id, asset_label])
+        type_name = self.get_type_name(self.type)
+        return reverse('station-detail', args=[type_name, self.id, asset_label])
     
     def get_feeder_list_url(self):
-        return reverse('station-detail',
-            args=[self.type_name, self.id, 'feeders'])
+        type_name = self.get_type_name(self.type)
+        return reverse('station-detail', args=[type_name, self.id, 'feeders'])
     
     def get_transformer_list_url(self):
+        type_name = self.get_type_name(self.type)
         return reverse('station-detail',
-            args=[self.type_name, self.id, 'transformers'])
+            args=[type_name, self.id, 'transformers'])
     
     @staticmethod
     def get_type_name(type_id):
