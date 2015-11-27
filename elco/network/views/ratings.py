@@ -36,12 +36,14 @@ def transformer_manage(request, record_id=None,
             message = _("The transformer rating has been added.")
             if record_id:
                 message = _("The transformer rating has been updated.")
-            messages.success(request, message)
+            messages.success(request, message, extra_tags='success')
             
-            target_url_name = 'rating-transformer-list'
             if '_save_addnew' in request.POST:
                 target_url_name = 'rating-transformer-create'
-            return redirect(reverse(target_url_name))
+                return redirect(reverse(target_url_name))
+            
+            target_url_name = 'rating-transformer-display'
+            return redirect(reverse(target_url_name, args=[form.instance.id]))
     else:
         form = TransformerRatingForm(instance=record)
     return TemplateResponse(request,
@@ -55,6 +57,7 @@ def transformer_display(request, record_id=None,
     record = get_object_or_404(TransformerRating, pk=record_id)
     return TemplateResponse(request,
         template, {
+        'form': TransformerRatingForm(instance=record),
         'record': record,
     })
 

@@ -7,7 +7,8 @@ from .constants import Voltage
 
 def validate_transformer_rating_code_format(value):
     err_message = _("Invalid Transformer Rating code format")
-    if len(value) == 5 and value[0] in ('P', 'D') and value[1] in ('3', '1'):
+    if (value and len(value) == 5 and value[0] in ('P', 'D') and 
+        value[1] in ('3', '1')):
         digits = value[2:] if value[-1] not in ('M', 'm') else value[2:-1]
         
         try: return int(digits)
@@ -16,11 +17,16 @@ def validate_transformer_rating_code_format(value):
 
 
 def validate_transformer_rating_code(code, capacity, voltage_ratio):
+    err_message = _("This field is required")
+    if not code:
+        raise ValidationError(err_message)
+    
     err_message = _("Mismatch between Transformer Rating code and values")
     
     # validate coded capacity
     coded_capacity = (code[2:] if code[-1] not in ('M', 'm') else code[2:-1])
-    multiplier = 100 if code[-1] == 'm' else 1000
+    multiplier = (1 if code[-1] not in ('M','m') else 
+                    100 if code[-1] == 'm' else 1000)
     
     try:
         coded_value = int(coded_capacity) * multiplier

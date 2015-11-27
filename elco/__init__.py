@@ -8,5 +8,6 @@ __version__ = '0.0'
 
 
 ELCO_CORE_APPS = [
+    'elco.core',
     'elco.network',
 ]

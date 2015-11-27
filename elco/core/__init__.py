@@ -1,0 +1,1 @@
+default_app_config = 'elco.core.config.ElcoCoreConfig'

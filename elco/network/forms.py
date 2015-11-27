@@ -78,7 +78,7 @@ class TransformerRatingForm(forms.ModelForm):
      
     class Meta:
         model = TransformerRating
-        fields = ['code', 'capacity', 'voltage_ratio']
+        fields = ['code', 'capacity', 'voltage_ratio', 'notes']
 
 
 class TransformerForm(forms.ModelForm):
