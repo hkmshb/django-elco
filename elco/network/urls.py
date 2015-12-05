@@ -34,9 +34,12 @@ station_urls = [
         include([
             url(r'^$', station_views.station_display, name='station-asset-list'),
             url(r'^create$', station_views.station_asset_manage, name='station-asset-create'),
+            url(r'^delete$', station_views.station_asset_delete, name='station-asset-multi-delete'),
             url(r'^(?P<asset_id>\d+)/',
                 include([
+                    url(r'^$', station_views.station_asset_display, name='station-asset-detail'),
                     url(r'^update$', station_views.station_asset_manage, name='station-asset-update'),
+                    url(r'^delete$', station_views.station_asset_delete, name='station-asset-delete'),
                 ]
             )),
         ]

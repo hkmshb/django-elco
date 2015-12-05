@@ -73,6 +73,6 @@ class Condition:
         (UNKNOWN, 'Unknown'),
         (OK,      'OK'),
         (FAULTY,  'Faulty'),
-        (DAMAGED, 'DAMAGED'),
+        (DAMAGED, 'Damaged'),
     )
 

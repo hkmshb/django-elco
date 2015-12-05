@@ -122,13 +122,18 @@ def station_asset_manage(request, type_name, station_id,
     station = get_object_or_404(Station, qf)
     
     # prepare for asset creation
-    asset_class, asset_form = (Transformer, TransformerForm)
+    asset_class, asset_form, qf2 = None, None, None
     if Station.is_feeder_asset_label(asset_type_name):
-        asset_class, asset_form = (PowerLine, PowerLineForm)
+        asset_class, asset_form = PowerLine, PowerLineForm
+        qf2 = (Q(source_station__id=station_id)
+             & Q(source_station__type=type_id))
+    else:
+        asset_class, asset_form = Transformer, TransformerForm
+        qf2 = (Q(station__id=station_id) & Q(station__type=type_id))
     
     asset = asset_class()
     if asset_id:
-        asset = get_object_or_404(asset_class, pk=asset_id)
+        asset = get_object_or_404(asset_class, qf2 & Q(pk=asset_id))
     
     if request.method == 'POST':
         form = asset_form(data=request.POST, instance=asset)
@@ -139,12 +144,12 @@ def station_asset_manage(request, type_name, station_id,
             message = _(msg_fmt + "created.")
             if asset_id:
                 message = _(msg_fmt + "updated.")
-            messages.success(request, message)
+            messages.success(request, message, extra_tags='success')
             
             next_url = request.POST.get('next', None)
             return_url = request.META.get('HTTP_REFERER', next_url)
-            args = [type_name, station_id, asset_type_name]
-            return redirect(reverse('station-asset-list', args=args) or return_url)
+            args = [type_name, station_id, asset_type_name, form.instance.id]
+            return redirect(reverse('station-asset-detail', args=args) or return_url)
     else:
         form = asset_form(instance=asset)
     return TemplateResponse(request,
@@ -152,4 +157,48 @@ def station_asset_manage(request, type_name, station_id,
         'asset_type_name': asset_type_name,
         'form': form,
     })
+
+
+def station_asset_display(request, type_name, station_id, asset_type_name, 
+                          asset_id, template='elco/station/asset-detail.html'):
+    # ensure station exists
+    type_id = Station.get_type_id(type_name)
+    qf = Q(pk=station_id) & Q(type=type_id)
+    station = get_object_or_404(Station, qf)
+    
+    # prepare for asset creation
+    asset_class, asset_form = (Transformer, TransformerForm)
+    if Station.is_feeder_asset_label(asset_type_name):
+        asset_class, asset_form = (PowerLine, PowerLineForm)
+    
+    asset = asset_class()
+    if asset_id:
+        asset = get_object_or_404(asset_class, pk=asset_id)
+    
+    return TemplateResponse(request,
+        template, {
+        'form': StationForm(instance=station),
+        'station': station,
+        'station_type_name': type_name,
+        'station_type_id': type_id,
+        'asset_form': asset_form(instance=asset),
+        'asset_type_name': asset_type_name,
+        'asset': asset,
+    })
+
+
+def station_asset_delete(request, type_name, station_id, asset_type_name, 
+                         asset_id=None):
+    # prepare asset criteria for delete action
+    asset_class, asset_name = (Transformer, 'transformer')
+    if Station.is_feeder_asset_label(asset_type_name):
+        asset_class, asset_name = (PowerLine, 'power line (feeder or upriser)')
+    
+    return_args = [type_name, station_id, asset_type_name]
+    return manage_object_deletion(request, ids=asset_id, 
+        model=asset_class,
+        model_name=asset_name,
+        return_url=reverse('station-asset-list', args=return_args)
+    )
+
 
