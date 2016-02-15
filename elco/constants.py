@@ -84,9 +84,19 @@ class Voltage:
         })
         
         # choices
+        CHOICES = (
+            (HVOLTH_HVOLTL, _text[HVOLTH_HVOLTL]),
+            (HVOLTL_MVOLTH, _text[HVOLTL_MVOLTH]),
+            (HVOLTL_MVOLTL, _text[HVOLTL_MVOLTL]),
+            (MVOLTH_MVOLTL, _text[MVOLTH_MVOLTL]),
+            (MVOLTH_LVOLT, _text[MVOLTH_LVOLT]),
+            (MVOLTL_LVOLT, _text[MVOLTL_LVOLT]),
+        )
+        
         TRANSMISSION_CHOICES = (
             (HVOLTH_HVOLTL, _text[HVOLTH_HVOLTL]),
             (HVOLTL_MVOLTH, _text[HVOLTL_MVOLTH]),
+            (HVOLTL_MVOLTL, _text[HVOLTL_MVOLTL])
         )
         
         INJECTION_CHOICES = (
@@ -107,7 +117,7 @@ class Voltage:
             return source[value]
 
 
-# convenient methods
+# convenience methods
 get_condition_display = Condition.get_display_text
 get_voltage_display = Voltage.get_display_text
 get_ratio_display = Voltage.Ratio.get_display_text
