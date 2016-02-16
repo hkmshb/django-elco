@@ -1,5 +1,7 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
+
 from address.models import AddressField
 
 from .constants import Condition, Voltage
@@ -41,12 +43,39 @@ class Station(AbstractBaseModel):
     source_feeder = models.ForeignKey(
         'PowerLine', verbose_name=_("Source Feeder"),
         null=True, blank=True, default=None)
-    address = AddressField(_("Address"), null=True, blank=True)
+    address = AddressField(
+        verbose_name=_("Address"), null=True, blank=True)
     date_commissioned = models.DateField(
         _("Date Commissioned"), null=True, blank=True)
     
     def __str__(self):
-        return "%s %s" % (self.name, self.get_voltge_ratio_display())
+        return "%s %s" % (self.name, self.get_voltage_ratio_display())
+    
+    def clean(self):
+        # ensure valid voltage assigned based on category
+        self._validate_voltage_ratio()
+    
+    def _validate_voltage_ratio(self):
+        message_fmt = "Invalid voltage ratio provided for %s Station."
+        category, voltage_ratio = self.category, self.voltage_ratio
+        
+        expected_choices = (Voltage.Ratio.TRANSMISSION_CHOICES
+            if category == Station.TRANSMISSION
+            else Voltage.Ratio.INJECTION_CHOICES
+                if category == Station.INJECTION
+                else Voltage.Ratio.DISTRIBUTION_CHOICES
+        )
+        
+        expected_ratios = [x[0] for x in expected_choices]
+        if voltage_ratio not in expected_ratios:
+            category_name = ("Transmission"
+                if category == Station.TRANSMISSION
+                else "Injection"
+                    if category == Station.INJECTION
+                    else "Distribution"
+            )
+            err_message = _(message_fmt % category_name)
+            raise ValidationError(err_message)
 
 
 class PowerLine(AbstractBaseModel):
@@ -83,5 +112,4 @@ class PowerLine(AbstractBaseModel):
     
     def __str__(self):
         return "%s %s" % (self.name, self.get_voltage_display())
-
 
