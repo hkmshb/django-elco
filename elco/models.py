@@ -54,6 +54,36 @@ class Station(AbstractBaseModel):
     def clean(self):
         # ensure valid voltage assigned based on category
         self._validate_voltage_ratio()
+        self._validate_code_format()
+    
+    def _validate_code_format(self):
+        err_message = _("Invalid station code format")
+        if not self.code or len(self.code) not in (4, 6):
+            raise ValidationError(err_message)
+        
+        code_start_char = self.get_category_display()[0]
+        if code_start_char == 'D':
+            code_start_char = 'S'
+        
+        if self.code[0] != code_start_char or self.code[1] not in ('1','3'):
+            raise ValidationError(err_message)
+        
+        # ensure code carries right voltage ratio embedded
+        expected_embedded_code = self.get_voltage_ratio_display()[0]
+        if self.code[1] != expected_embedded_code:
+            raise ValidationError(err_message)
+        
+        hex_code = self.code[2:]
+        expected_hex_length = (4 if code_start_char == 'S' else 2)
+        if len(hex_code) != expected_hex_length:
+            raise ValidationError(err_message)
+        
+        try:
+            int(hex_code, 16)
+            return
+        except:
+            pass
+        raise ValidationError(err_message)
     
     def _validate_voltage_ratio(self):
         message_fmt = "Invalid voltage ratio provided for %s Station."
