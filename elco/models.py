@@ -5,6 +5,15 @@ from django.utils.translation import ugettext_lazy as _
 from address.models import AddressField
 
 from .constants import Condition, Voltage
+from .validators import validate_powerline_code_format
+
+
+# message constants
+MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED = _(
+    "Source feeder for Transmission Station not supported.")
+MSG_XSTATION_INPUT_MISMATCH_FEEDER = _(
+    "Source feeder voltage mismatch Station input voltage for voltage ratio")
+
 
 
 
@@ -48,6 +57,9 @@ class Station(AbstractBaseModel):
     date_commissioned = models.DateField(
         _("Date Commissioned"), null=True, blank=True)
     
+    class Meta:
+        unique_together = ('name', 'category')
+    
     def __str__(self):
         return "%s %s" % (self.name, self.get_voltage_ratio_display())
     
@@ -55,6 +67,7 @@ class Station(AbstractBaseModel):
         # ensure valid voltage assigned based on category
         self._validate_voltage_ratio()
         self._validate_code_format()
+        self._validate_source_feeder()
     
     def _validate_code_format(self):
         err_message = _("Invalid station code format")
@@ -106,7 +119,23 @@ class Station(AbstractBaseModel):
             )
             err_message = _(message_fmt % category_name)
             raise ValidationError(err_message)
-
+    
+    def _validate_source_feeder(self):
+        if not self.source_feeder:
+            return
+        
+        if self.category == Station.TRANSMISSION:
+            raise ValidationError(MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED)
+        
+        # ok for Inj. and Dist. S/S with MVOLTH_LVOLT ratio
+        expected_input_voltage = Voltage.MVOLTH
+        if self.category == Station.DISTRIBUTION:
+            if self.voltage_ratio == Voltage.Ratio.MVOLTL_LVOLT:
+                expected_input_voltage = Voltage.MVOLTL
+        
+        if self.source_feeder.voltage != expected_input_voltage:
+            raise ValidationError(MSG_XSTATION_INPUT_MISMATCH_FEEDER)
+    
 
 class PowerLine(AbstractBaseModel):
     """Represents a power line within an electric distribution power network."""
@@ -125,7 +154,8 @@ class PowerLine(AbstractBaseModel):
         (Voltage.LVOLT,  Voltage._text[Voltage.LVOLT]),
     )
     
-    code = models.CharField(_("Code"), max_length=10, unique=True)
+    code = models.CharField(_("Code"), max_length=10, unique=True,
+            validators=[validate_powerline_code_format])
     name = models.CharField(_("Name"), max_length=100)
     type = models.CharField(_("Type"), max_length=1,
                 choices=POWERLINE_CHOICES)
@@ -142,4 +172,4 @@ class PowerLine(AbstractBaseModel):
     
     def __str__(self):
         return "%s %s" % (self.name, self.get_voltage_display())
-
+    
