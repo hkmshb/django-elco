@@ -5,7 +5,8 @@ from django.utils.translation import ugettext_lazy as _
 from address.models import AddressField
 
 from .constants import Condition, Voltage
-from .validators import validate_powerline_code_format
+from .validators import validate_powerline_code_format,\
+        validate_station_code_format, MSG_INVALID_FORMAT
 
 
 # message constants
@@ -13,6 +14,7 @@ MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED = _(
     "Source feeder for Transmission Station not supported.")
 MSG_XSTATION_INPUT_MISMATCH_FEEDER = _(
     "Source feeder voltage mismatch Station input voltage for voltage ratio")
+MSG_FMT_INVALID_VOLTAGE_RATIO = "Invalid voltage ratio provided for %s."
 
 
 
@@ -42,7 +44,9 @@ class Station(AbstractBaseModel):
         (DISTRIBUTION, 'Distribution'),
     )
     
-    code = models.CharField(_("Code"), max_length=10, unique=True)
+    code = models.CharField(_("Code"), max_length=10, unique=True,
+            validators=[validate_station_code_format])
+    alt_code = models.CharField(_("Alternate Code"), max_length=10, blank=True)
     name = models.CharField(_("Name"), max_length=100)
     category = models.CharField(_("Category"), max_length=1, 
                                 choices=STATION_CHOICES)
@@ -66,40 +70,28 @@ class Station(AbstractBaseModel):
     def clean(self):
         # ensure valid voltage assigned based on category
         self._validate_voltage_ratio()
-        self._validate_code_format()
         self._validate_source_feeder()
+        self._validate_code()
     
-    def _validate_code_format(self):
-        err_message = _("Invalid station code format")
-        if not self.code or len(self.code) not in (4, 6):
-            raise ValidationError(err_message)
+    def _validate_code(self):
+        """Code format has been validated by field validator. Validation here
+        ensures portions of the code match station characteristics.
+        """
+        # ensure start_char matches category
+        start_char = self.get_category_display()[0]
+        if start_char == 'D':
+            start_char = 'S'
         
-        code_start_char = self.get_category_display()[0]
-        if code_start_char == 'D':
-            code_start_char = 'S'
+        if self.code[0].upper() != start_char:
+            raise ValidationError(MSG_INVALID_FORMAT)
         
-        if self.code[0] != code_start_char or self.code[1] not in ('1','3'):
-            raise ValidationError(err_message)
-        
-        # ensure code carries right voltage ratio embedded
-        expected_embedded_code = self.get_voltage_ratio_display()[0]
-        if self.code[1] != expected_embedded_code:
-            raise ValidationError(err_message)
-        
-        hex_code = self.code[2:]
-        expected_hex_length = (4 if code_start_char == 'S' else 2)
-        if len(hex_code) != expected_hex_length:
-            raise ValidationError(err_message)
-        
-        try:
-            int(hex_code, 16)
-            return
-        except:
-            pass
-        raise ValidationError(err_message)
+        # ensure embedded voltage code matches voltage ratio
+        voltage_code = self.get_voltage_ratio_display()[0]
+        if self.code[1] != voltage_code:
+            raise ValidationError(MSG_INVALID_FORMAT)
     
     def _validate_voltage_ratio(self):
-        message_fmt = "Invalid voltage ratio provided for %s Station."
+        message_fmt = MSG_FMT_INVALID_VOLTAGE_RATIO
         category, voltage_ratio = self.category, self.voltage_ratio
         
         expected_choices = (Voltage.Ratio.TRANSMISSION_CHOICES
@@ -156,6 +148,7 @@ class PowerLine(AbstractBaseModel):
     
     code = models.CharField(_("Code"), max_length=10, unique=True,
             validators=[validate_powerline_code_format])
+    alt_code = models.CharField(_("Alternate Code"), max_length=10, blank=True)
     name = models.CharField(_("Name"), max_length=100)
     type = models.CharField(_("Type"), max_length=1,
                 choices=POWERLINE_CHOICES)

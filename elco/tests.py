@@ -1,12 +1,111 @@
+import random
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 
 from .models import Station, PowerLine, MSG_XSTATION_INPUT_MISMATCH_FEEDER,\
-        MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED
+        MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED,\
+        MSG_FMT_INVALID_VOLTAGE_RATIO
 from .constants import Condition, Voltage
 from .validators import validate_powerline_code_format,\
+        validate_station_code_format,\
         MSG_REQUIRED_FIELD, MSG_INVALID_FORMAT
 
+
+
+class StationCodeValidationTestCase(TestCase):
+    
+    def _assert_invalid_format(self, code):
+        with self.assertRaises(ValidationError) as ex:
+            validate_station_code_format(code)
+        self.assertIn(str(MSG_INVALID_FORMAT), str(ex.exception))
+    
+    def test_code_invalid_for_zero_as_number(self):
+        not_allowed = ('T100', 'I300', 'S10000')
+        for code in not_allowed:
+            self._assert_invalid_format(code)
+    
+    def test_code_invalid_for_wrong_start_char(self):
+        invalid_start_chars = 'ABCDEFGHJKLMNOPQRUVWXYZ' # missing I,S,T
+        for char in invalid_start_chars:
+            code = '%s10001' % char
+            self._assert_invalid_format(code)
+    
+    def test_power_station_code_invalid_for_wrong_length(self):
+        # power station (starts with T, I) length=4
+        bad_codes = ('T10', 'T1001', 'I30', 'I3001')
+        for code in bad_codes:
+            self._assert_invalid_format(code)
+    
+    def test_dist_station_code_invalid_for_wrong_length(self):
+        # dist station (starts with S) length=6
+        bad_codes = ('S1000', 'S100023')
+        for code in bad_codes:
+            self._assert_invalid_format(code)
+    
+    def test_code_invalid_for_wrong_embedded_input_voltage_digit_range(self):
+        # expected embedded digit are 1=132 or 11KV 3=330 or 33KV
+        invalid_digits = '02456789'
+        code_formats = ['T%s01', 'I%s01', 'S%s0001']
+        for digit in invalid_digits:
+            code = random.choice(code_formats) % digit
+            self._assert_invalid_format(code)
+    
+    def test_code_invalid_for_nonhex_number(self):
+        invalid_chars = 'GHIJKLMNOPQRSTUVWXYZ'
+        code_formats = ['T33', 'I32', 'S1021']
+        for char in invalid_chars:
+            code = random.choice(code_formats) + char
+            self._assert_invalid_format(code)
+
+
+class PowerLineCodeValidationTestCase(TestCase):
+    
+    def _assert_invalid_format(self, code):
+        with self.assertRaises(ValidationError) as ex:
+            validate_powerline_code_format(code)
+        self.assertIn(str(MSG_INVALID_FORMAT), str(ex.exception))
+    
+    def test_code_invalid_for_zero_as_number(self):
+        not_allowed = ('F100', 'F300', 'U0')
+        for code in not_allowed:
+            self._assert_invalid_format(code)
+    
+    def test_code_invalid_for_wrong_start_chars(self):
+        invalid_start_chars = 'ABCDEGHIJKLMNOPQRSTVWXYZ'
+        for char in invalid_start_chars:
+            code = '%s101' % char
+            self._assert_invalid_format(code)
+    
+    def test_feeder_code_invalid_for_wrong_length(self):
+        # feeder code (starts with F) length = 4
+        bad_codes = ('F10', 'F1001')
+        for code in bad_codes:
+            self._assert_invalid_format(code)
+    
+    def test_feeder_code_invalid_for_wrong_embedded_voltage_digit_range(self):
+        # expected embedded digits are 1=11KV, 3=33KV
+        invalid_digits = '02456789'
+        for digit in invalid_digits:
+            code = 'F%s01' % digit
+            self._assert_invalid_format(code)
+    
+    def test_feeder_code_invalid_for_nonhex_number(self):
+        invalid_chars = 'GHIJKLMNOPQRSTUVWXYZ'
+        for char in invalid_chars:
+            code = 'F10%s' % char
+            self._assert_invalid_format(code)
+    
+    def test_upriser_code_invalid_for_wrong_length(self):
+        # upriser code (starts with U) length = 2
+        bad_codes = ('U', 'U01', 'U012')
+        for code in bad_codes:
+            self._assert_invalid_format(code)
+    
+    def test_upriser_code_invalid_for_nonhex_number(self):
+        invalid_chars = 'GHIJKLMNOPQRSTUVWXYZ'
+        for char in invalid_chars:
+            code = 'U%s' % char
+            self._assert_invalid_format(code)
 
 
 class StationTestCase(TestCase):
@@ -68,7 +167,8 @@ class StationTestCase(TestCase):
             with self.assertRaises(ValidationError) as ex:
                 bad_station.full_clean()
             
-            self.assertIn("Invalid voltage ratio", str(ex.exception))
+            message_part = MSG_FMT_INVALID_VOLTAGE_RATIO.replace('%s.', '')
+            self.assertIn(message_part, str(ex.exception))
     
     def test_code_len_notequal4_invalid_for_transmission(self):
         bad_codes = ('T10', 'T1001')
@@ -165,7 +265,7 @@ class StationTestCase(TestCase):
         with self.assertRaises(ValidationError) as ex:
             station.full_clean()
         
-        self.assertIn("Invalid station code format", str(ex.exception))
+        self.assertIn(str(MSG_INVALID_FORMAT), str(ex.exception))
     
     def test_transmission_with_source_feeder_not_acceptable(self):
         feeder = PowerLine.objects.create(
@@ -236,53 +336,3 @@ class PowerLineTestCase(TestCase):
     def test_code_with_wrong_start_char_invalid_for_feeder(self):
         pass
 
-
-class ValidationTestCase(TestCase):
-    
-    def test_powerline_code_with_zero_as_number_invalid(self):
-        not_allowed = ('F100', 'F300', 'U0')
-        for code in not_allowed:
-            self._assert_invalid_powerline_code_format(code)
-    
-    def test_powerline_code_invalid_for_wrong_start_chars(self):
-        invalid_start_chars = 'ABCDEGHIJKLMNOPQRSTVWXYZ'
-        for char in invalid_start_chars:
-            code = '%s101' % char
-            self._assert_invalid_powerline_code_format(code)
-    
-    def test_feeder_code_invalid_for_wrong_length(self):
-        # feeder code (starts with F) length = 4
-        bad_codes = ('F10', 'F1001')
-        for code in bad_codes:
-            self._assert_invalid_powerline_code_format(code)
-    
-    def test_feeder_code_invalid_for_wrong_embedded_voltage_digit_range(self):
-        # expected embedded digits are 1=11KV, 3=33KV
-        invalid_digits = '02456789'
-        for digit in invalid_digits:
-            code = 'F%s01' % digit
-            self._assert_invalid_powerline_code_format(code)
-    
-    def test_feeder_code_invalid_for_nonhex_number(self):
-        invalid_chars = 'GHIJKLMNOPQRSTUVWXYZ'
-        for char in invalid_chars:
-            code = 'F10%s' % char
-            self._assert_invalid_powerline_code_format(code)
-    
-    def test_upriser_code_invalid_for_wrong_length(self):
-        # upriser code (starts with U) length = 2
-        bad_codes = ('U', 'U01', 'U012')
-        for code in bad_codes:
-            self._assert_invalid_powerline_code_format(code)
-    
-    def test_upriser_code_invalid_for_nonhex_number(self):
-        invalid_chars = 'GHIJKLMNOPQRSTUVWXYZ'
-        for char in invalid_chars:
-            code = 'U%s' % char
-            self._assert_invalid_powerline_code_format(code)
-    
-    def _assert_invalid_powerline_code_format(self, code):
-        with self.assertRaises(ValidationError) as ex:
-            validate_powerline_code_format(code)
-        
-        self.assertIn(str(MSG_INVALID_FORMAT), str(ex.exception))
