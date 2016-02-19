@@ -4,9 +4,9 @@ from django.utils.translation import ugettext_lazy as _
 from .constants import Voltage
 
 MSG_REQUIRED_FIELD = _("This field cannot be null.")
-MSG_INVALID_FORMAT = _("Format of provided data is invalid.")
+MSG_INVALID_FORMAT = _("The format of provided code is invalid.")
 MSG_MISMATCH_RATING_CODE_VALUE = _(
-    "Mismatch between Transformer Rating code and values")
+    "There is a mismatch between Transformer Rating code and values")
 
 
 
@@ -27,7 +27,7 @@ def validate_station_code_format(value):
                     return value
             except:
                 pass
-    raise ValidationError(MSG_INVALID_FORMAT)
+    raise ValidationError(MSG_INVALID_FORMAT, code='invalid')
 
 
 def validate_powerline_code_format(value):

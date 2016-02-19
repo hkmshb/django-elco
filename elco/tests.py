@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from .constants import Voltage
 from .models import (Station, PowerLine, TransformerRating, 
         MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED,
+        MSG_XSTATION_CODE_MISMATCH_VOLTAGE_RATIO,
         MSG_XSTATION_INPUT_MISMATCH_FEEDER,
         MSG_FMT_INVALID_VOLTAGE_RATIO)
 from .constants import Condition, Voltage
@@ -170,7 +171,7 @@ class StationTestCase(TestCase):
             with self.assertRaises(ValidationError) as ex:
                 bad_station.full_clean()
             
-            message_part = MSG_FMT_INVALID_VOLTAGE_RATIO.replace('%s.', '')
+            message_part = MSG_FMT_INVALID_VOLTAGE_RATIO[:-20]
             self.assertIn(message_part, str(ex.exception))
     
     def test_code_len_notequal4_invalid_for_transmission(self):
@@ -236,7 +237,7 @@ class StationTestCase(TestCase):
                 name='Sample', category=Station.TRANSMISSION,
                 voltage_ratio=voltage_ratio)
             
-            self._assert_invalid_code(bad_station)
+            self._assert_mismatch_code(bad_station)
     
     def test_code_with_wrong_embedded_voltage_ratio_for_injection(self):
         bad_station = Station(code='I101',
@@ -254,7 +255,7 @@ class StationTestCase(TestCase):
                 name='Sample', category=Station.DISTRIBUTION,
                 voltage_ratio=voltage_ratio)
             
-            self._assert_invalid_code(bad_station)
+            self._assert_mismatch_code(bad_station)
     
     def test_passes_validation_with_valid_code(self):
         codes = ('T110', 'T1ff')
@@ -269,6 +270,12 @@ class StationTestCase(TestCase):
             station.full_clean()
         
         self.assertIn(str(MSG_INVALID_FORMAT), str(ex.exception))
+    
+    def _assert_mismatch_code(self, station):
+        with self.assertRaises(ValidationError) as ex:
+            station.full_clean()
+        self.assertIn(str(MSG_XSTATION_CODE_MISMATCH_VOLTAGE_RATIO),
+                      str(ex.exception))
     
     def test_transmission_with_source_feeder_not_acceptable(self):
         feeder = PowerLine.objects.create(

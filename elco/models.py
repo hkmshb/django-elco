@@ -14,8 +14,11 @@ from .validators import validate_powerline_code_format,\
 MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED = _(
     "Source feeder for Transmission Station not supported.")
 MSG_XSTATION_INPUT_MISMATCH_FEEDER = _(
-    "Source feeder voltage mismatch Station input voltage for voltage ratio")
-MSG_FMT_INVALID_VOLTAGE_RATIO = "Invalid voltage ratio provided for %s."
+    "Source feeder voltage mismatch Station input voltage for voltage ratio.")
+MSG_XSTATION_CODE_MISMATCH_VOLTAGE_RATIO = _(
+    "There is a mismatch between provided code and voltage ratio.")
+MSG_FMT_INVALID_VOLTAGE_RATIO = \
+    "Invalid voltage ratio provided for %s station category."
 
 
 
@@ -77,22 +80,30 @@ class Station(AbstractBaseModel):
         """Code format has been validated by field validator. Validation here
         ensures portions of the code match station characteristics.
         """
+        # ensure fields required to perform validation are present
+        if not self.code or not self.category or not self.voltage_ratio:
+            return
+        
         # ensure start_char matches category
         start_char = self.get_category_display()[0]
         if start_char == 'D':
             start_char = 'S'
         
-        if self.code[0].upper() != start_char:
+        if not self.code or self.code[0].upper() != start_char:
             raise ValidationError(MSG_INVALID_FORMAT)
         
         # ensure embedded voltage code matches voltage ratio
         voltage_code = self.get_voltage_ratio_display()[0]
         if self.code[1] != voltage_code:
-            raise ValidationError(MSG_INVALID_FORMAT)
+            raise ValidationError(MSG_XSTATION_CODE_MISMATCH_VOLTAGE_RATIO)
     
     def _validate_voltage_ratio(self):
         message_fmt = MSG_FMT_INVALID_VOLTAGE_RATIO
         category, voltage_ratio = self.category, self.voltage_ratio
+        
+        # ensure fields required to perform validation are present
+        if not voltage_ratio or not category:
+            return
         
         expected_choices = (Voltage.Ratio.TRANSMISSION_CHOICES
             if category == Station.TRANSMISSION
@@ -102,7 +113,7 @@ class Station(AbstractBaseModel):
         )
         
         expected_ratios = [x[0] for x in expected_choices]
-        if voltage_ratio not in expected_ratios:
+        if voltage_ratio and voltage_ratio not in expected_ratios:
             category_name = ("Transmission"
                 if category == Station.TRANSMISSION
                 else "Injection"
