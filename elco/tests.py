@@ -2,9 +2,11 @@ import random
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 
-from .models import Station, PowerLine, MSG_XSTATION_INPUT_MISMATCH_FEEDER,\
-        MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED,\
-        MSG_FMT_INVALID_VOLTAGE_RATIO
+from .constants import Voltage
+from .models import (Station, PowerLine, TransformerRating, 
+        MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED,
+        MSG_XSTATION_INPUT_MISMATCH_FEEDER,
+        MSG_FMT_INVALID_VOLTAGE_RATIO)
 from .constants import Condition, Voltage
 from .validators import validate_powerline_code_format,\
         validate_station_code_format,\
@@ -12,7 +14,7 @@ from .validators import validate_powerline_code_format,\
 
 
 
-class StationCodeValidationTestCase(TestCase):
+class StationCodeFormatTestCase(TestCase):
     
     def _assert_invalid_format(self, code):
         with self.assertRaises(ValidationError) as ex:
@@ -58,7 +60,7 @@ class StationCodeValidationTestCase(TestCase):
             self._assert_invalid_format(code)
 
 
-class PowerLineCodeValidationTestCase(TestCase):
+class PowerLineCodeFormatTestCase(TestCase):
     
     def _assert_invalid_format(self, code):
         with self.assertRaises(ValidationError) as ex:
@@ -332,7 +334,68 @@ class PowerLineTestCase(TestCase):
             
         self.assertIn(str(MSG_REQUIRED_FIELD), str(ex.exception))
     
-    # orig: test_code_start_char_appropriate_for_type(self):
     def test_code_with_wrong_start_char_invalid_for_feeder(self):
         pass
 
+
+class TransformerRatingTest(TestCase):
+    
+    def test_code_missing_transformer_type_char_are_invalid(self):
+        rating = TransformerRating(code='3060', capacity=60000,
+                    voltage_ratio=Voltage.Ratio.HVOLTL_MVOLTH)
+        
+        with self.assertRaises(ValidationError):
+            # rating is missing characters P or D
+            rating.full_clean()
+    
+    def test_code_with_invalid_xfmr_type_char_are_invalid(self):
+        # its a bad idea to convert code to all uppercase as the characters
+        # 'M' and 'm' mean differently in code interpretation
+        rating = TransformerRating(code='p3060', capacity=6000,
+                    voltage_ratio=Voltage.Ratio.HVOLTL_MVOLTH)
+        
+        with self.assertRaises(ValidationError):
+            # unknown character p, only P and D known
+            rating.full_clean()
+    
+    def test_code_without_unit_for_fraction_capacity_are_invalid(self):
+        rating = TransformerRating(code='P3060', capacity=6000,
+                    voltage_ratio=Voltage.Ratio.HVOLTL_MVOLTH)
+        
+        with self.assertRaises(ValidationError):
+            # expected: P360m
+            rating.full_clean()
+    
+    def test_code_with_invalid_unit_char_are_invalid(self):
+        rating = TransformerRating(code='D350K', capacity=50,
+                    voltage_ratio=Voltage.Ratio.MVOLTH_LVOLT)
+        
+        with self.assertRaises(ValidationError):
+            # not expected: K at code end
+            rating.full_clean()
+    
+    def test_code_with_fraction_unit_matches_for_fraction_capacity(self):
+        rating = TransformerRating(code='P375m', capacity=7500,
+                    voltage_ratio=Voltage.Ratio.HVOLTL_MVOLTH)
+        # should not raise error.=
+        rating.full_clean()
+
+    #+
+    #| RatingCodeBuildTest(TestCase):
+    #+------------------------------------------------------------------------+
+    
+    def test_builds_with_mult_for_5digit_power_xfmr(self):
+        code = build_transformer_rating_code(60000, '132/33KV')
+        self.assertEqual('P360M', code)
+    
+    def test_builds_with_mult_for_4digit_power_xfmr(self):
+        code = build_transformer_rating_code(5000, '132/33KV')
+        self.assertEqual('P305M', code)
+    
+    def test_builds_with_fmult_for_4fracdigit_power_xfmr(self):
+        code = build_transformer_rating_code(7500, '132/33KV')
+        self.assertEqual('P375m', code)
+    
+    def test_builds_without_mult_for_3digit_dist_xfmr(self):
+        code = build_transformer_rating_code(500, '33/0.415KV')
+        self.assertEqual('D3500', code)
