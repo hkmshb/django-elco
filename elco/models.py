@@ -8,7 +8,6 @@ from .constants import Condition, Voltage
 from .validators import validate_powerline_code_format,\
         validate_station_code_format, validate_transformer_rating_code,\
         validate_transformer_rating_code_format, MSG_INVALID_FORMAT
- 
 
 
 # message constants
@@ -17,7 +16,6 @@ MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED = _(
 MSG_XSTATION_INPUT_MISMATCH_FEEDER = _(
     "Source feeder voltage mismatch Station input voltage for voltage ratio")
 MSG_FMT_INVALID_VOLTAGE_RATIO = "Invalid voltage ratio provided for %s."
-
 
 
 
@@ -47,7 +45,7 @@ class Station(AbstractBaseModel):
     )
     
     code = models.CharField(_("Code"), max_length=10, unique=True,
-            validators=[validate_station_code_format])
+                validators=[validate_station_code_format])
     alt_code = models.CharField(_("Alternate Code"), max_length=10, blank=True)
     name = models.CharField(_("Name"), max_length=100)
     category = models.CharField(_("Category"), max_length=1, 
@@ -236,4 +234,37 @@ class TransformerRating(AbstractBaseModel):
         # ensure coded rating & capacity match actual values
         validate_transformer_rating_code(
             self.code, self.capacity, self.voltage_ratio)
+
+
+class EquipmentBase(AbstractBaseModel):
+    """Represents the abstract base class for equipments."""
+    serialno = models.CharField(
+        _("Serial #"), max_length=50, blank=True, unique=True)
+    model = models.CharField(
+        _("Model"), max_length=100, blank=True)
+    manufacturer = models.CharField(
+        _("Manufacturer"), max_length=100, blank=True)
+    condition = models.PositiveSmallIntegerField(
+        _("Condition"), choices=Condition.CHOICES)
+    station = models.ForeignKey(
+        Station, to_field='code', verbose_name=_("Station"))
+    date_installed = models.DateField(
+        _("Date Installed"), null=True, blank=True)
+    date_manufactured = models.DateField(
+        _("Date Manufactured"), null=True, blank=True)
+    
+    class Meta:
+        abstract = True
+
+
+class Transformer(EquipmentBase):
+    """Represents all classes (power, distribution) of transformers within an
+    electricity distribution network.
+    """
+    code = models.CharField(_("Code"), max_length=10)
+    rating = models.ForeignKey(
+        TransformerRating, to_field='code', verbose_name=_("Rating"))
+    
+    class Meta:
+        unique_together = ('code', 'station')
 
