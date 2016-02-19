@@ -1,3 +1,4 @@
+from django.utils.translation import ugettext_lazy as _
 from collections import OrderedDict
 
 
@@ -63,7 +64,7 @@ class Voltage:
         """Returns the display text for the provided voltage value."""
         source = Voltage._text
         if value not in source.keys():
-            raise ValueError("Unknown voltage value provided.")
+            raise ValueError(_("Unknown voltage value provided."))
         return source[value]
     
     
@@ -113,8 +114,19 @@ class Voltage:
             """Returns the display text for the provided voltage ratio value."""
             source = Voltage.Ratio._text
             if value not in source.keys():
-                raise ValueError("Unknown voltage ratio value provided.")
+                raise ValueError(_("Unknown voltage ratio value provided."))
             return source[value]
+        
+        @staticmethod
+        def get_value_from_text(text):
+            """Returns the defined constant value for the provided voltage 
+            ratio text, which is expected to conform to the standard format.
+            """
+            text = (text or '').strip().replace(' ','').upper()
+            for key, value in Voltage.Ratio._text.items():
+                if text == value:
+                    return key
+            raise ValueError(_("Unknown voltage ratio text provided"))
 
 
 # convenience methods

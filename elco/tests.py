@@ -11,6 +11,7 @@ from .constants import Condition, Voltage
 from .validators import validate_powerline_code_format,\
         validate_station_code_format,\
         MSG_REQUIRED_FIELD, MSG_INVALID_FORMAT
+from .forms import build_transformer_rating_code
 
 
 
