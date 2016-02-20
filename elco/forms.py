@@ -1,4 +1,8 @@
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
+from django import forms
+
+from .models import Station, PowerLine
 from .constants import Voltage
 
 
@@ -59,4 +63,66 @@ def build_transformer_rating_code(capacity, voltage_ratio):
         raise ValueError(MSG_INVALID_XFMR_CAPACITY)
     return code
 
+
+class StationForm(forms.ModelForm):
+    
+    class Meta:
+        model = Station
+        fields = ['code', 'alt_code', 'name', 'category', 'voltage_ratio',
+                  'source_feeder', 'address', 'public', 'date_commissioned',
+                  'notes']
+    
+    def __init__(self, category, *args, **kwargs):
+        super(StationForm, self).__init__(*args, **kwargs)
+        self._prep_voltage_ratio_field(category)
+        self._prep_source_feeder_field(category)
+        self._prep_category_field(category)
+    
+    def _prep_category_field(self, category):
+        field_key = 'category'
+        if category:
+            self.fields[field_key].widget.attrs['disabled'] = True
+            self.fields[field_key].initial = category
+        else:
+            choices = self.__make_generator(Station.CATEGORY_CHOICES)
+            self.fields[field_key].choices = choices
+    
+    def _prep_source_feeder_field(self, category):
+        # expects 33KV feeder as source; distribution substations are
+        # some what a misnoma as can accept both 33KV & 11KV source. 
+        if category == Station.TRANSMISSION:
+            choices = self.__make_generator([], "Not Applicable")
+        else:
+            manager = PowerLine.objects
+            records = (manager.all() 
+                if category == Station.DISTRIBUTION else
+                    manager.filter(voltage=Voltage.MVOLTH))
+            choices = self.__make_generator(records)
+        
+        # prepare field
+        field_key = 'source_feeder'
+        self.fields[field_key].choices = choices
+        if category == Station.TRANSMISSION:
+            del self.fields[field_key]
+    
+    def _prep_voltage_ratio_field(self, category):
+        VR, choices = Voltage.Ratio, Voltage.Ratio.CHOICES
+        if category == Station.TRANSMISSION:
+            choices = VR.TRANSMISSION_CHOICES
+        elif category == Station.INJECTION:
+            choices = VR.INJECTION_CHOICES
+        else:
+            choices = VR.DISTRIBUTION_CHOICES
+        
+        choices_gen = self.__make_generator(choices)
+        self.fields['voltage_ratio'].choices = choices_gen
+    
+    def __make_generator(self, choices, text="One"):
+        def func():
+            label = mark_safe("%s Select %s %s" % ('&laquo;', text, '&raquo;'))
+            yield (None, label)
+            
+            for choice in choices:
+                yield choice
+        return func
 

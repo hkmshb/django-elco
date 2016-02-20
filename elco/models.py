@@ -41,7 +41,7 @@ class Station(AbstractBaseModel):
     INJECTION    = 'I'
     DISTRIBUTION = 'D'
     
-    STATION_CHOICES = (
+    CATEGORY_CHOICES = (
         (TRANSMISSION, 'Transmission'),
         (INJECTION,    'Injection'),
         (DISTRIBUTION, 'Distribution'),
@@ -52,7 +52,7 @@ class Station(AbstractBaseModel):
     alt_code = models.CharField(_("Alternate Code"), max_length=10, blank=True)
     name = models.CharField(_("Name"), max_length=100)
     category = models.CharField(_("Category"), max_length=1, 
-                                choices=STATION_CHOICES)
+                                choices=CATEGORY_CHOICES)
     public = models.BooleanField(_("Public"), default=True)
     voltage_ratio = models.PositiveSmallIntegerField(
         _("Voltage Ratio"), choices=Voltage.Ratio.CHOICES)
