@@ -27,8 +27,8 @@ class AbstractBaseModel(models.Model):
     for tracking dates of creation and last update for a databas entity.
     """
     is_active = models.BooleanField(_("Active"), default=True, db_index=True)
-    date_created = models.DateTimeField(_("Date Created"), auto_now_add=True)
-    last_updated = models.DateTimeField(_("Last Updated"), auto_now=True, null=True)
+    date_created = models.DateField(_("Date Created"), auto_now_add=True)
+    last_updated = models.DateField(_("Last Updated"), auto_now=True, null=True)
     notes = models.TextField(_("Notes"), blank=True)
     
     class Meta:
