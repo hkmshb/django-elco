@@ -42,8 +42,10 @@ def validate_powerline_code_format(value):
         
         if number:
             try:
-                if int(number, 16) > 0:
-                    return value
+                number = int(number, 16)
+                if number > 0:
+                    if not (start_char == 'U' and number > 4):
+                        return value
             except:
                 pass
     raise ValidationError(MSG_INVALID_FORMAT)

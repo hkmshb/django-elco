@@ -17,6 +17,10 @@ MSG_XSTATION_INPUT_MISMATCH_FEEDER = _(
     "Source feeder voltage mismatch Station input voltage for voltage ratio.")
 MSG_XSTATION_CODE_MISMATCH_VOLTAGE_RATIO = _(
     "There is a mismatch between provided code and voltage ratio.")
+MSG_POWERLINE_CODE_MISMATCH_VOLTAGE = _(
+    "There is a mismatch between provided code and voltage.")
+MSG_POWERLINE_VOLTAGE_MISMATCH_SOURCE_FEEDER = _(
+    "There is a mismatch between provided voltage and source station voltage ratio.")
 MSG_FMT_INVALID_VOLTAGE_RATIO = \
     "Invalid voltage ratio provided for %s station category."
 
@@ -176,6 +180,36 @@ class PowerLine(AbstractBaseModel):
     
     def __str__(self):
         return "%s %s" % (self.name, self.get_voltage_display())
+    
+    def clean(self):
+        self._validate_code()
+        self._validate_source_station()
+    
+    def _validate_code(self):
+        # ensure fields required to perform validation are present
+        if not self.code or not self.voltage:
+            return
+        
+        if self.code[0] == 'F':
+            coded_voltage = self.code[1]
+            voltage_text = Voltage._text[self.voltage]
+            if coded_voltage != voltage_text[0]:
+                raise ValidationError(MSG_POWERLINE_CODE_MISMATCH_VOLTAGE)
+    
+    def _validate_source_station(self):
+        try:
+            if not self.voltage or not self.source_station:
+                return
+            
+            voltage_text = Voltage._text[self.voltage]
+            station_vr = self.source_station.get_voltage_ratio_display()
+            station_out = station_vr.split('/')[1]
+            
+            if voltage_text.upper() == station_out.upper():
+                return
+        except:
+            pass
+        raise ValidationError(MSG_POWERLINE_VOLTAGE_MISMATCH_SOURCE_FEEDER)
 
 
 class TransformerRating(AbstractBaseModel):

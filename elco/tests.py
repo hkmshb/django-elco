@@ -4,9 +4,11 @@ from django.core.exceptions import ValidationError
 
 from .constants import Voltage
 from .models import (Station, PowerLine, TransformerRating, 
+        MSG_POWERLINE_VOLTAGE_MISMATCH_SOURCE_FEEDER,
         MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED,
         MSG_XSTATION_CODE_MISMATCH_VOLTAGE_RATIO,
         MSG_XSTATION_INPUT_MISMATCH_FEEDER,
+        MSG_POWERLINE_CODE_MISMATCH_VOLTAGE,
         MSG_FMT_INVALID_VOLTAGE_RATIO)
 from .constants import Condition, Voltage
 from .validators import validate_powerline_code_format,\
@@ -102,6 +104,12 @@ class PowerLineCodeFormatTestCase(TestCase):
     def test_upriser_code_invalid_for_wrong_length(self):
         # upriser code (starts with U) length = 2
         bad_codes = ('U', 'U01', 'U012')
+        for code in bad_codes:
+            self._assert_invalid_format(code)
+    
+    def test_upriser_code_invalid_for_number_gt4(self):
+        # upriser code (starts with U) length = 2
+        bad_codes = ('U5', 'U6', 'U7', 'U8', 'U9', 'UA', 'UB')
         for code in bad_codes:
             self._assert_invalid_format(code)
     
@@ -333,6 +341,20 @@ class PowerLineTestCase(TestCase):
                 type=PowerLine.FEEDER, voltage=Voltage.MVOLTH,
                 source_station=self.station)
     
+    def _assert_mismatched_code(self, powerline):
+        with self.assertRaises(ValidationError) as ex:
+            powerline.full_clean()
+        
+        self.assertIn(str(MSG_POWERLINE_CODE_MISMATCH_VOLTAGE),
+                      str(ex.exception))
+    
+    def _assert_mismatch_voltage_feeder_source(self, powerline):
+        with self.assertRaises(ValidationError) as ex:
+            powerline.full_clean()
+        
+        self.assertIn(str(MSG_POWERLINE_VOLTAGE_MISMATCH_SOURCE_FEEDER),
+                      str(ex.exception))
+    
     def test_powerline_without_source_station_invalid(self):
         powerline = PowerLine(code='F30B', name='Sample PowerLine',
                         type=PowerLine.FEEDER, voltage=Voltage.MVOLTH)
@@ -342,8 +364,34 @@ class PowerLineTestCase(TestCase):
             
         self.assertIn(str(MSG_REQUIRED_FIELD), str(ex.exception))
     
-    def test_code_with_wrong_start_char_invalid_for_feeder(self):
-        pass
+    def test_code_with_wrong_encoded_voltage_invalid_for_feeder(self):
+        bad_entries = (('F101', Voltage.MVOLTH),('F302', Voltage.MVOLTL))
+        for code, voltage in bad_entries:
+            bad_station = PowerLine(code=code, name='Sample PowerLine', 
+                            type=PowerLine.FEEDER, voltage=voltage,
+                            source_station=self.station)
+            self._assert_mismatched_code(bad_station)
+    
+    def test_nonmatch_voltage_to_source_feeder_invalid_for_transmission(self):
+        # these are valid together if source station isn't considered
+        powerline = PowerLine(code='F101', name='Sample PowerLine',
+                        type=PowerLine.FEEDER, voltage=Voltage.MVOLTL,
+                        source_station=self.station)
+        self._assert_mismatch_voltage_feeder_source(powerline)
+    
+    def test_nonmatch_voltage_to_source_feeder_invalid_for_injection(self):
+        # these are valid together; though with a wrong station vr
+        station = Station.objects.create(
+                    code='T30B', name='Sample IS',
+                    category=Station.INJECTION,
+                    voltage_ratio=Voltage.Ratio.MVOLTH_MVOLTL)
+        
+        powerline = PowerLine(
+            code='F301', name='Sample PowerLine',
+            type=PowerLine.FEEDER, voltage=Voltage.MVOLTH,
+            source_station=station)
+        
+        self._assert_mismatch_voltage_feeder_source(powerline)
 
 
 class TransformerRatingTest(TestCase):
