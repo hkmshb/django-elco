@@ -218,6 +218,14 @@ class PowerLine(AbstractBaseModel):
         except:
             pass
         raise ValidationError(MSG_POWERLINE_VOLTAGE_MISMATCH_SOURCE_FEEDER)
+    
+    @staticmethod
+    def get_type_value(self, text):
+        text = (text or '').strip().title()
+        for key, value in PowerLine.POWERLINE_CHOICES:
+            if text == value:
+                return key
+        raise ValueError(_("Unknown power line type text provided."))
 
 
 class TransformerRating(AbstractBaseModel):
