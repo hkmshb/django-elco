@@ -83,50 +83,75 @@ class StationForm(forms.ModelForm):
                   'source_feeder', 'address', 'public', 'date_commissioned',
                   'notes']
     
-    def __init__(self, category, *args, **kwargs):
+    def __init__(self, category, source_feeder, *args, **kwargs):
         super(StationForm, self).__init__(*args, **kwargs)
-        self._prep_voltage_ratio_field(category)
-        self._prep_source_feeder_field(category)
-        self._prep_category_field(category)
+        self._prep_voltage_ratio_field(category, source_feeder)
+        self._prep_source_feeder_field(category, source_feeder)
+        self._prep_category_field(category, source_feeder)
     
-    def _prep_category_field(self, category):
+    def _prep_category_field(self, category, source_feeder):
         field_key = 'category'
         if category:
             self.fields[field_key].widget.attrs['disabled'] = True
             self.fields[field_key].initial = category
         else:
-            choices = _make_generator(Station.CATEGORY_CHOICES)
-            self.fields[field_key].choices = choices
+            if not source_feeder:
+                choices = Station.CATEGORY_CHOICES
+            else:
+                if source_feeder.voltage == Voltage.MVOLTH:
+                    choices = Station.CATEGORY_CHOICES[1:]
+                else:
+                    choices = Station.CATEGORY_CHOICES[-1]
+            self.fields[field_key].choices = _make_generator(choices)
     
-    def _prep_source_feeder_field(self, category):
+    def _prep_source_feeder_field(self, category, source_feeder):
         # expects 33KV feeder as source; distribution substations are
         # some what a misnoma as can accept both 33KV & 11KV source. 
         if category == Station.TRANSMISSION:
             choices = _make_generator([], "Not Applicable")
         else:
             manager = PowerLine.objects
-            records = (manager.all() 
-                if category == Station.DISTRIBUTION else
-                    manager.filter(voltage=Voltage.MVOLTH))
-            choices = _make_generator(records, unpack_model=lambda r: (r.id, r))
+            station_input = ((Voltage.MVOLTH,)
+                if category == Station.INJECTION
+                else (Voltage.MVOLTH, Voltage.MVOLTL)) 
+            
+            records = manager.filter(voltage__in=station_input)
+            choices = _make_generator(records, unpack_model=lambda r: (r.code, r))
         
         # prepare field
         field_key = 'source_feeder'
         self.fields[field_key].choices = choices
         if category == Station.TRANSMISSION:
             del self.fields[field_key]
-    
-    def _prep_voltage_ratio_field(self, category):
-        VR, choices = Voltage.Ratio, Voltage.Ratio.CHOICES
-        if category == Station.TRANSMISSION:
-            choices = VR.TRANSMISSION_CHOICES
-        elif category == Station.INJECTION:
-            choices = VR.INJECTION_CHOICES
-        elif category == Station.DISTRIBUTION:
-            choices = VR.DISTRIBUTION_CHOICES
         
+        if source_feeder:
+            self.fields[field_key].initial = source_feeder.code
+            self.fields[field_key].widget.attrs['disabled'] = True
+    
+    def _prep_voltage_ratio_field(self, category, source_feeder):
+        VR, choices = Voltage.Ratio, Voltage.Ratio.CHOICES
+        if source_feeder:
+            if source_feeder.voltage == Voltage.MVOLTH:
+                choices = (
+                    (VR.MVOLTH_MVOLTL, VR._text[VR.MVOLTH_MVOLTL]),
+                    (VR.MVOLTH_LVOLT, VR._text[VR.MVOLTH_LVOLT]))
+            elif source_feeder.voltage == Voltage.MVOLTL:
+                choices = ((VR.MVOLTL_LVOLT, VR._text[VR.MVOLTL_LVOLT]),)
+        elif category:
+            if category == Station.TRANSMISSION:
+                choices = VR.TRANSMISSION_CHOICES
+            elif category == Station.INJECTION:
+                choices = VR.INJECTION_CHOICES
+            elif category == Station.DISTRIBUTION:
+                choices = VR.DISTRIBUTION_CHOICES
+        
+        field_key = 'voltage_ratio'
         choices_gen = _make_generator(choices)
-        self.fields['voltage_ratio'].choices = choices_gen
+        self.fields[field_key].choices = choices_gen
+        
+        if source_feeder:
+            if source_feeder.voltage == Voltage.MVOLTL:
+                self.fields[field_key].widget.attrs['disabled'] = True
 
 
 class PowerLineForm(forms.ModelForm):

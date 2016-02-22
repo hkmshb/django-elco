@@ -61,7 +61,7 @@ class Station(AbstractBaseModel):
     voltage_ratio = models.PositiveSmallIntegerField(
         _("Voltage Ratio"), choices=Voltage.Ratio.CHOICES)
     source_feeder = models.ForeignKey(
-        'PowerLine', verbose_name=_("Source Feeder"),
+        'PowerLine', to_field='code', verbose_name=_("Source Feeder"),
         null=True, blank=True, default=None)
     address = AddressField(
         verbose_name=_("Address"), null=True, blank=True)
@@ -142,6 +142,14 @@ class Station(AbstractBaseModel):
         
         if self.source_feeder.voltage != expected_input_voltage:
             raise ValidationError(MSG_XSTATION_INPUT_MISMATCH_FEEDER)
+    
+    @staticmethod
+    def get_category_value(self, text):
+        text = (text or '').strip().title()
+        for key, value in Station.CATEGORY_CHOICES:
+            if text == value:
+                return key
+        raise ValueError(_("Unknown station category text provided."))
 
 
 class PowerLine(AbstractBaseModel):
