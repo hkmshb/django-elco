@@ -108,7 +108,7 @@ class StationForm(forms.ModelForm):
             records = (manager.all() 
                 if category == Station.DISTRIBUTION else
                     manager.filter(voltage=Voltage.MVOLTH))
-            choices = _make_generator(records)
+            choices = _make_generator(records, unpack_model=lambda r: (r.id, r))
         
         # prepare field
         field_key = 'source_feeder'
@@ -122,7 +122,7 @@ class StationForm(forms.ModelForm):
             choices = VR.TRANSMISSION_CHOICES
         elif category == Station.INJECTION:
             choices = VR.INJECTION_CHOICES
-        else:
+        elif category == Station.DISTRIBUTION:
             choices = VR.DISTRIBUTION_CHOICES
         
         choices_gen = _make_generator(choices)
