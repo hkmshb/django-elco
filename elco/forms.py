@@ -136,22 +136,32 @@ class PowerLineForm(forms.ModelForm):
         fields = ['code', 'alt_code', 'name', 'type', 'voltage', 'public',
                   'source_station', 'date_commissioned', 'notes']
 
-    def __init__(self, line_type, *args, **kwargs):
+    def __init__(self, line_type, source_station, hide_widgets=False,
+                  *args, **kwargs):
         super(PowerLineForm, self).__init__(*args, **kwargs)
+        self.hide_widgets = hide_widgets
+        if source_station:
+            line_type = (PowerLine.UPRISER 
+                if source_station.category == Station.DISTRIBUTION
+                    else PowerLine.FEEDER)
+        
         self._prep_line_type_field(line_type)
-        self._prep_voltage_field(line_type)
-        self._prep_source_station(line_type)
+        self._prep_voltage_field(line_type, source_station)
+        self._prep_source_station(line_type, source_station)
     
     def _prep_line_type_field(self, line_type):
         field_key = 'type'
         if line_type:
-            self.fields[field_key].widget.attrs['disabled'] = True
             self.fields[field_key].initial = line_type
+            if not self.hide_widgets:
+                self.fields[field_key].widget.attrs['disabled'] = True
+            else:
+                del self.fields[field_key]
         else:
             choices = _make_generator(PowerLine.POWERLINE_CHOICES)
             self.fields[field_key].choices = choices
     
-    def _prep_voltage_field(self, line_type):
+    def _prep_voltage_field(self, line_type, source_station):
         choices = PowerLine.VOLTAGE_CHOICES
         if line_type == PowerLine.FEEDER:
             choices = Voltage.FEEDER_CHOICES
@@ -160,8 +170,24 @@ class PowerLineForm(forms.ModelForm):
         
         choices_gen = _make_generator(choices)
         self.fields['voltage'].choices = choices_gen
+        
+        # settings based on source station
+        if source_station:
+            # get lv-/output-side voltage text
+            station_out = source_station.get_voltage_ratio_display()
+            station_out = station_out.split('/')[1]
+            
+            # get voltage value with corresponding text as above
+            voltage = Voltage.get_value_from_text(station_out)
+            
+            field_key = 'voltage'
+            self.fields[field_key].initial = voltage
+            if not self.hide_widgets:
+                self.fields[field_key].widget.attrs['disabled'] = True
+            else:
+                del self.fields[field_key]
     
-    def _prep_source_station(self, line_type):
+    def _prep_source_station(self, line_type, source_station):
         manager = Station.objects
         if not line_type:
             records = manager.all()
@@ -178,3 +204,10 @@ class PowerLineForm(forms.ModelForm):
         field_key = 'source_station'
         self.fields[field_key].choices = choices
         
+        if source_station:
+            self.fields[field_key].initial = source_station.code
+            if not self.hide_widgets:
+                self.fields[field_key].widget.attrs['disabled'] = True
+            else:
+                del self.fields[field_key]
+
