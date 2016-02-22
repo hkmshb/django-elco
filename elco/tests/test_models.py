@@ -2,19 +2,19 @@ import random
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 
-from .constants import Voltage
-from .models import (Station, PowerLine, TransformerRating, 
+from ..constants import Voltage
+from ..models import (Station, PowerLine, TransformerRating, 
         MSG_POWERLINE_VOLTAGE_MISMATCH_SOURCE_FEEDER,
         MSG_TSTATION_SOURCE_FEEDER_NOT_SUPPORTED,
         MSG_XSTATION_CODE_MISMATCH_VOLTAGE_RATIO,
         MSG_XSTATION_INPUT_MISMATCH_FEEDER,
         MSG_POWERLINE_CODE_MISMATCH_VOLTAGE,
         MSG_FMT_INVALID_VOLTAGE_RATIO)
-from .constants import Condition, Voltage
-from .validators import validate_powerline_code_format,\
+from ..constants import Condition, Voltage
+from ..validators import validate_powerline_code_format,\
         validate_station_code_format,\
         MSG_REQUIRED_FIELD, MSG_INVALID_FORMAT
-from .forms import build_transformer_rating_code
+from ..forms import build_transformer_rating_code
 
 
 
