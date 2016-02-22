@@ -64,6 +64,17 @@ def build_transformer_rating_code(capacity, voltage_ratio):
     return code
 
 
+def _make_generator(choices, text="One", unpack_model=None):
+    def func():
+        label = mark_safe("%s Select %s %s" % ('&laquo;', text, '&raquo;'))
+        yield (None, label)
+        
+        for choice in choices:
+            choice = choice if not unpack_model else unpack_model(choice)
+            yield choice
+    return func
+
+
 class StationForm(forms.ModelForm):
     
     class Meta:
@@ -84,20 +95,20 @@ class StationForm(forms.ModelForm):
             self.fields[field_key].widget.attrs['disabled'] = True
             self.fields[field_key].initial = category
         else:
-            choices = self.__make_generator(Station.CATEGORY_CHOICES)
+            choices = _make_generator(Station.CATEGORY_CHOICES)
             self.fields[field_key].choices = choices
     
     def _prep_source_feeder_field(self, category):
         # expects 33KV feeder as source; distribution substations are
         # some what a misnoma as can accept both 33KV & 11KV source. 
         if category == Station.TRANSMISSION:
-            choices = self.__make_generator([], "Not Applicable")
+            choices = _make_generator([], "Not Applicable")
         else:
             manager = PowerLine.objects
             records = (manager.all() 
                 if category == Station.DISTRIBUTION else
                     manager.filter(voltage=Voltage.MVOLTH))
-            choices = self.__make_generator(records)
+            choices = _make_generator(records)
         
         # prepare field
         field_key = 'source_feeder'
@@ -114,15 +125,56 @@ class StationForm(forms.ModelForm):
         else:
             choices = VR.DISTRIBUTION_CHOICES
         
-        choices_gen = self.__make_generator(choices)
+        choices_gen = _make_generator(choices)
         self.fields['voltage_ratio'].choices = choices_gen
-    
-    def __make_generator(self, choices, text="One"):
-        def func():
-            label = mark_safe("%s Select %s %s" % ('&laquo;', text, '&raquo;'))
-            yield (None, label)
-            
-            for choice in choices:
-                yield choice
-        return func
 
+
+class PowerLineForm(forms.ModelForm):
+    
+    class Meta:
+        model = PowerLine
+        fields = ['code', 'alt_code', 'name', 'type', 'voltage', 'public',
+                  'source_station', 'date_commissioned', 'notes']
+
+    def __init__(self, line_type, *args, **kwargs):
+        super(PowerLineForm, self).__init__(*args, **kwargs)
+        self._prep_line_type_field(line_type)
+        self._prep_voltage_field(line_type)
+        self._prep_source_station(line_type)
+    
+    def _prep_line_type_field(self, line_type):
+        field_key = 'type'
+        if line_type:
+            self.fields[field_key].widget.attrs['disabled'] = True
+            self.fields[field_key].initial = line_type
+        else:
+            choices = _make_generator(PowerLine.POWERLINE_CHOICES)
+            self.fields[field_key].choices = choices
+    
+    def _prep_voltage_field(self, line_type):
+        choices = PowerLine.VOLTAGE_CHOICES
+        if line_type == PowerLine.FEEDER:
+            choices = Voltage.FEEDER_CHOICES
+        elif line_type == PowerLine.UPRISER:
+            choices = Voltage.UPRISER_CHOICES
+        
+        choices_gen = _make_generator(choices)
+        self.fields['voltage'].choices = choices_gen
+    
+    def _prep_source_station(self, line_type):
+        manager = Station.objects
+        if not line_type:
+            records = manager.all()
+        else:
+            if line_type == PowerLine.UPRISER:
+                records = manager.filter(category=Station.DISTRIBUTION)
+            else:
+                expected = (Station.TRANSMISSION, Station.INJECTION)
+                records = manager.filter(category__in=expected)
+        
+        choices = _make_generator(records, unpack_model=lambda r: (r.code, r))
+        
+        # prepare field
+        field_key = 'source_station'
+        self.fields[field_key].choices = choices
+        
