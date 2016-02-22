@@ -83,7 +83,7 @@ class StationForm(forms.ModelForm):
                   'source_feeder', 'address', 'public', 'date_commissioned',
                   'notes']
     
-    def __init__(self, category, source_feeder, *args, **kwargs):
+    def __init__(self, category=None, source_feeder=None, *args, **kwargs):
         super(StationForm, self).__init__(*args, **kwargs)
         self._prep_voltage_ratio_field(category, source_feeder)
         self._prep_source_feeder_field(category, source_feeder)
@@ -161,8 +161,8 @@ class PowerLineForm(forms.ModelForm):
         fields = ['code', 'alt_code', 'name', 'type', 'voltage', 'public',
                   'source_station', 'date_commissioned', 'notes']
 
-    def __init__(self, line_type, source_station, hide_widgets=False,
-                  *args, **kwargs):
+    def __init__(self, line_type=None, source_station=None, 
+                 hide_widgets=False, *args, **kwargs):
         super(PowerLineForm, self).__init__(*args, **kwargs)
         self.hide_widgets = hide_widgets
         if source_station:
