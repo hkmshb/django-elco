@@ -67,6 +67,17 @@ class Voltage:
             raise ValueError(_("Unknown voltage value provided."))
         return source[value]
     
+    @staticmethod
+    def get_value_from_text(text):
+        """Returns the defined constant value for the provided voltage text,
+        which is expected to conform to the standard format.
+        """
+        text = (text or '').strip().replace(' ','').upper()
+        for key, value in Voltage._text.items():
+            if text == value:
+                return key
+        raise ValueError(_("Unknown voltage text provided"))
+    
     
     class Ratio:
         """Defines input/output voltage ratios for stations and equipments."""
@@ -127,6 +138,18 @@ class Voltage:
                 if text == value:
                     return key
             raise ValueError(_("Unknown voltage ratio text provided"))
+        
+        @staticmethod
+        def get_hi_volt(value):
+            text = Voltage.Ratio.get_display_text(value)
+            portion_text = "%sKV" % text.split('/')[0]
+            return Voltage.get_value_from_text(portion_text)
+        
+        @staticmethod
+        def get_lo_volt(value):
+            text = Voltage.Ratio.get_display_text(value)
+            portion_text = text.split('/')[1]
+            return Voltage.get_value_from_text(portion_text)
 
 
 # convenience methods
